@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* print helpers */
+@media print {
+  body { -webkit-print-color-adjust: exact; }
+}
