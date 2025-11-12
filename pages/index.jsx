@@ -20,49 +20,104 @@ const DEFAULT_ITEMS = [
 const STORAGE_KEY = "monitoringToiletData_v1";
 
 export default function MonitoringToiletApp() {
-  const [items, setItems] = useState(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch (e) {}
-    return DEFAULT_ITEMS.map((label, i) => ({ id: i + 1, label, status: "BELUM", note: "" }));
-  });
+  // 🔧 Fix hydration mismatch
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
+  const [items, setItems] = useState([]);
   const [location, setLocation] = useState("");
   const [coordinator, setCoordinator] = useState("");
   const [savedAt, setSavedAt] = useState(null);
+  const [currentDate, setCurrentDate] = useState("");
 
   useEffect(() => {
+    if (!isClient) return;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        setItems(JSON.parse(raw));
+      } else {
+        setItems(
+          DEFAULT_ITEMS.map((label, i) => ({
+            id: i + 1,
+            label,
+            status: "BELUM",
+            note: "",
+          }))
+        );
+      }
+    } catch (e) {}
+    setCurrentDate(new Date().toLocaleDateString());
+  }, [isClient]);
+
+  useEffect(() => {
+    if (!isClient || items.length === 0) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
       setSavedAt(new Date().toISOString());
     } catch (e) {}
-  }, [items]);
+  }, [items, isClient]);
 
+  if (!isClient) {
+    return <div className="p-6 text-center text-gray-500">Memuat aplikasi...</div>;
+  }
+
+  // 🔘 Handler
   function toggleStatus(id, next) {
-    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, status: next } : it)));
+    setItems((prev) =>
+      prev.map((it) => (it.id === id ? { ...it, status: next } : it))
+    );
   }
 
   function updateNote(id, note) {
-    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, note } : it)));
+    setItems((prev) =>
+      prev.map((it) => (it.id === id ? { ...it, note } : it))
+    );
   }
 
   function resetAll() {
     if (!confirm("Reset semua checklist ke BELUM dan hapus catatan?")) return;
-    setItems(DEFAULT_ITEMS.map((label, i) => ({ id: i + 1, label, status: "BELUM", note: "" })));
+    setItems(
+      DEFAULT_ITEMS.map((label, i) => ({
+        id: i + 1,
+        label,
+        status: "BELUM",
+        note: "",
+      }))
+    );
     setCoordinator("");
     setLocation("");
   }
 
   function exportCSV() {
-    const header = ["No","Checklist","Status","Catatan","Lokasi","Koordinator"].join(",");
-    const rows = items.map(it => [it.id, `"${it.label.replace(/"/g,'""') }"`, it.status, `"${(it.note||"").replace(/"/g,'""') }"`, `"${location.replace(/"/g,'""')}"`, `"${coordinator.replace(/"/g,'""')}"`].join(","));
+    const header = [
+      "No",
+      "Checklist",
+      "Status",
+      "Catatan",
+      "Lokasi",
+      "Koordinator",
+    ].join(",");
+    const rows = items.map((it) =>
+      [
+        it.id,
+        `"${it.label.replace(/"/g, '""')}"`,
+        it.status,
+        `"${(it.note || "").replace(/"/g, '""')}"`,
+        `"${location.replace(/"/g, '""')}"`,
+        `"${coordinator.replace(/"/g, '""')}"`,
+      ].join(",")
+    );
     const csv = [header, ...rows].join("\n");
-    const blob = new Blob([csv], { type: 'text/csv' });
+    const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `monitoring-toilet-${new Date().toISOString().slice(0,10)}.csv`;
+    a.download = `monitoring-toilet-${new Date()
+      .toISOString()
+      .slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -71,99 +126,174 @@ export default function MonitoringToiletApp() {
     window.print();
   }
 
+  // 🧩 UI
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans">
-      <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow p-6">
-        <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 font-sans">
+      <div className="max-w-6xl mx-auto bg-white rounded-xl shadow p-6">
+        {/* Header */}
+        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
           <div>
-            <h1 className="text-2xl font-semibold">Monitoring Kebersihan Toilet</h1>
-            <p className="text-sm text-gray-600">Pilih <span className="font-medium">SUDAH</span> atau <span className="font-medium">BELUM</span> dan tambahkan catatan.</p>
+            <h1 className="text-2xl font-semibold">
+              Monitoring Toilet
+            </h1>
+            <p className="text-sm text-gray-600">
+              Checklist kebersihan dan kelengkapan toilet
+            </p>
           </div>
-          <div className="flex flex-wrap gap-2 items-center">
-            <input value={location} onChange={e=>setLocation(e.target.value)} placeholder="Lokasi" className="border rounded px-3 py-2 text-sm" />
-            <input value={coordinator} onChange={e=>setCoordinator(e.target.value)} placeholder="Koordinator" className="border rounded px-3 py-2 text-sm" />
-            <button onClick={exportCSV} className="px-3 py-2 bg-indigo-600 text-white rounded">Export CSV</button>
-            <button onClick={printReport} className="px-3 py-2 bg-green-600 text-white rounded">Cetak / Print</button>
-            <button onClick={resetAll} className="px-3 py-2 border rounded text-sm">Reset</button>
+          <div className="flex flex-wrap gap-2">
+            <input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="Lokasi"
+              className="border rounded px-3 py-2 text-sm"
+            />
+            <input
+              value={coordinator}
+              onChange={(e) => setCoordinator(e.target.value)}
+              placeholder="Koordinator"
+              className="border rounded px-3 py-2 text-sm"
+            />
+            <button
+              onClick={exportCSV}
+              className="px-3 py-2 bg-indigo-600 text-white rounded text-sm"
+            >
+              Export CSV
+            </button>
+            <button
+              onClick={printReport}
+              className="px-3 py-2 bg-green-600 text-white rounded text-sm"
+            >
+              Cetak
+            </button>
+            <button
+              onClick={resetAll}
+              className="px-3 py-2 border rounded text-sm"
+            >
+              Reset
+            </button>
           </div>
         </header>
 
-        {/* PRINT HEADER */}
+        {/* Header untuk print */}
         <div className="hidden print:block text-center mb-4">
-          <h2 className="text-xl font-bold">LAPORAN MONITORING KEBERSIHAN TOILET</h2>
-          <p className="text-sm">Tanggal: {new Date().toLocaleDateString()}</p>
-          <p className="text-sm">Lokasi: {location || '-'} | Koordinator: {coordinator || '-'}</p>
+          <h2 className="text-lg font-bold">
+            LAPORAN MONITORING KEBERSIHAN DAN KELENGKAPAN TOILET
+          </h2>
+          <p>Tanggal: {currentDate}</p>
+          <p>
+            Lokasi: {location || "-"} | Koordinator: {coordinator || "-"}
+          </p>
         </div>
 
-        <main className="mt-6">
-          <div className="overflow-x-auto">
-            <table className="w-full border text-sm">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="border px-2 py-1 text-left">No</th>
-                  <th className="border px-2 py-1 text-left">Checklist</th>
-                  <th className="border px-2 py-1 text-left">Status</th>
-                  <th className="border px-2 py-1 text-left">Catatan</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map(it => (
-                  <tr key={it.id} className="align-top">
-                    <td className="border px-2 py-1 w-10">{it.id}</td>
-                    <td className="border px-2 py-1">{it.label}</td>
-                    <td className="border px-2 py-1 text-center">
-                      <div className="flex gap-1 justify-center print:justify-start">
-                        <button onClick={()=>toggleStatus(it.id, 'SUDAH')} className={`px-2 py-1 rounded text-xs ${it.status==='SUDAH' ? 'bg-green-600 text-white' : 'bg-white border'} print:hidden`}>SUDAH</button>
-                        <button onClick={()=>toggleStatus(it.id, 'BELUM')} className={`px-2 py-1 rounded text-xs ${it.status==='BELUM' ? 'bg-red-600 text-white' : 'bg-white border'} print:hidden`}>BELUM</button>
-                        <span className="hidden print:inline">{it.status}</span>
-                      </div>
-                    </td>
-                    <td className="border px-2 py-1">
-                      <textarea value={it.note} onChange={e=>updateNote(it.id, e.target.value)} className="w-full p-1 border rounded text-xs print:hidden" rows={2} />
-                      <div className="hidden print:block whitespace-pre-wrap text-xs">{it.note}</div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        {/* Checklist */}
+        <main className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {items.map((it) => (
+            <div
+              key={it.id}
+              className="no-break border rounded-lg p-4 bg-gray-50 flex flex-col justify-between h-full min-h-[180px]"
+            >
+              <div className="flex flex-col justify-between h-full">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="text-xs text-gray-500">No. {it.id}</div>
+                    <div className="font-medium text-base">{it.label}</div>
+                  </div>
 
-          <div className="mt-8 flex justify-between text-sm text-gray-600 print:hidden">
-            <div>Terakhir disimpan: {savedAt ? new Date(savedAt).toLocaleString() : '—'}</div>
-            <div>
-              <button onClick={()=>{navigator.share ? navigator.share({title:'Monitoring Toilet', text:'Laporan Monitoring Toilet', url:location.href}).catch(()=>{}) : alert('Share tidak tersedia di device ini')}} className="px-3 py-2 border rounded">Share</button>
-            </div>
-          </div>
+                  {/* Status */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => toggleStatus(it.id, "SUDAH")}
+                      className={`px-3 py-1 rounded text-sm print:hidden ${
+                        it.status === "SUDAH"
+                          ? "bg-green-600 text-white"
+                          : "bg-white border"
+                      }`}
+                    >
+                      SUDAH
+                    </button>
+                    <button
+                      onClick={() => toggleStatus(it.id, "BELUM")}
+                      className={`px-3 py-1 rounded text-sm print:hidden ${
+                        it.status === "BELUM"
+                          ? "bg-red-600 text-white"
+                          : "bg-white border"
+                      }`}
+                    >
+                      BELUM
+                    </button>
 
-          {/* Print footer with signature area */}
-          <div className="hidden print:block mt-10 text-sm">
-            <div className="flex justify-between">
-              <div>
-                <p>Mengetahui,</p>
-                <p className="mt-12 underline">({coordinator || '................................'})</p>
-                <p>Koordinator Kebersihan</p>
+                    {/* Status print */}
+                    <span className="hidden print:inline font-semibold">
+                      {it.status}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Catatan */}
+                <div className="mt-3 flex flex-col flex-grow justify-end">
+                  <label className="text-xs text-gray-600">Catatan</label>
+                  <textarea
+                    value={it.note}
+                    onChange={(e) => updateNote(it.id, e.target.value)}
+                    className="w-full mt-1 p-2 border rounded text-sm resize-none h-[60px] print:hidden"
+                  />
+                  <p className="hidden print:block text-sm mt-1 whitespace-pre-line border-t pt-1">
+                    {it.note || "-"}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p>Petugas,</p>
-                <p className="mt-12 underline">(................................)</p>
-                <p>Petugas Kebersihan</p>
-              </div>
             </div>
-          </div>
-
+          ))}
         </main>
+
+        {/* Footer */}
+        <footer className="mt-6 text-xs text-gray-500 text-center print:hidden">
+          Terakhir disimpan:{" "}
+          {savedAt ? new Date(savedAt).toLocaleString() : "—"}
+        </footer>
+
+        {/* Footer untuk print */}
+        <div className="hidden print:block mt-10 text-sm">
+          <div className="flex justify-between">
+            <div>
+              <p>Mengetahui,</p>
+              <p className="mt-12 underline">
+                ({coordinator || "................................"})
+              </p>
+              <p>Koordinator Kebersihan</p>
+            </div>
+            <div>
+              <p>Petugas,</p>
+              <p className="mt-12 underline">(................................)</p>
+              <p>Petugas Kebersihan</p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <footer className="max-w-5xl mx-auto text-center text-xs text-gray-500 mt-4 print:hidden">Aplikasi sederhana — responsif dan bisa dicetak sebagai laporan resmi.</footer>
-
+      {/* ✅ Print Style Fix */}
       <style jsx global>{`
         @media print {
-          body { background: white !important; }
-          table { font-size: 11px; }
-          th, td { border: 1px solid black !important; }
-          textarea, button, input { display: none !important; }
-          .print\:hidden { display: none !important; }
-          .print\:block { display: block !important; }
+          body {
+            background: white !important;
+          }
+          .print\\:hidden {
+            display: none !important;
+          }
+          .print\\:block {
+            display: block !important;
+          }
+
+          /* agar setiap card tidak terpotong */
+          .no-break {
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+
+          /* margin halaman print */
+          @page {
+            margin: 1.5cm;
+          }
         }
       `}</style>
     </div>

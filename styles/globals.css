@@ -6,3 +6,30 @@
 @media print {
   body { -webkit-print-color-adjust: exact; }
 }
+
+/* Responsive fixes for small screens */
+@media (max-width: 640px) {
+  html, body {
+    font-size: 14px;
+    padding: 0;
+    margin: 0;
+    overflow-x: hidden;
+  }
+  table {
+    display: block;
+    overflow-x: auto;
+    width: 100%;
+    border-collapse: collapse;
+  }
+  td, th {
+    padding: 4px;
+    word-break: break-word;
+  }
+  textarea {
+    font-size: 12px;
+  }
+  button, input {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+}
