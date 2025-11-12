@@ -163,7 +163,7 @@ export default function MonitoringToiletApp() {
               onClick={printReport}
               className="px-3 py-2 bg-green-600 text-white rounded text-sm"
             >
-              Cetak
+              Print
             </button>
             <button
               onClick={resetAll}
