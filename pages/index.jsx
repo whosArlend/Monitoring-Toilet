@@ -20,13 +20,14 @@ const DEFAULT_ITEMS = [
 const STORAGE_KEY = "monitoringToiletData_v1";
 
 export default function MonitoringToiletApp() {
-  // 🔧 Fix hydration mismatch
+  // ✅ Fix hydration mismatch
   const [isClient, setIsClient] = useState(false);
   useEffect(() => {
     setIsClient(true);
   }, []);
 
   const [items, setItems] = useState([]);
+  const [dayDate, setDayDate] = useState("");
   const [location, setLocation] = useState("");
   const [coordinator, setCoordinator] = useState("");
   const [savedAt, setSavedAt] = useState(null);
@@ -64,7 +65,7 @@ export default function MonitoringToiletApp() {
     return <div className="p-6 text-center text-gray-500">Memuat aplikasi...</div>;
   }
 
-  // 🔘 Handler
+  // 🔘 Handlers
   function toggleStatus(id, next) {
     setItems((prev) =>
       prev.map((it) => (it.id === id ? { ...it, status: next } : it))
@@ -89,6 +90,7 @@ export default function MonitoringToiletApp() {
     );
     setCoordinator("");
     setLocation("");
+    setDayDate("");
   }
 
   function exportCSV() {
@@ -97,6 +99,7 @@ export default function MonitoringToiletApp() {
       "Checklist",
       "Status",
       "Catatan",
+      "Hari & Tanggal",
       "Lokasi",
       "Koordinator",
     ].join(",");
@@ -106,6 +109,7 @@ export default function MonitoringToiletApp() {
         `"${it.label.replace(/"/g, '""')}"`,
         it.status,
         `"${(it.note || "").replace(/"/g, '""')}"`,
+        `"${dayDate.replace(/"/g, '""')}"`,
         `"${location.replace(/"/g, '""')}"`,
         `"${coordinator.replace(/"/g, '""')}"`,
       ].join(",")
@@ -142,6 +146,12 @@ export default function MonitoringToiletApp() {
           </div>
           <div className="flex flex-wrap gap-2">
             <input
+              value={dayDate}
+              onChange={(e) => setDayDate(e.target.value)}
+              placeholder="Hari & Tanggal"
+              className="border rounded px-3 py-2 text-sm"
+            />
+            <input
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="Lokasi"
@@ -163,7 +173,7 @@ export default function MonitoringToiletApp() {
               onClick={printReport}
               className="px-3 py-2 bg-green-600 text-white rounded text-sm"
             >
-              Print
+              Cetak
             </button>
             <button
               onClick={resetAll}
@@ -179,7 +189,7 @@ export default function MonitoringToiletApp() {
           <h2 className="text-lg font-bold">
             LAPORAN MONITORING KEBERSIHAN DAN KELENGKAPAN TOILET
           </h2>
-          <p>Tanggal: {currentDate}</p>
+          <p>Hari & Tanggal: {dayDate || currentDate}</p>
           <p>
             Lokasi: {location || "-"} | Koordinator: {coordinator || "-"}
           </p>
